@@ -6,36 +6,42 @@ Stack:   Node.js + Express
 Files:   20 analyzed | ~600 lines of code
 
 ## Summary
-CRITICAL: 2 | HIGH: 1 | MEDIUM: 1 | LOW: 1
+CRITICAL: 1 | HIGH: 1 | MEDIUM: 2 | LOW: 2
 
 ## Findings
 
 ### [CRITICAL] Falsa Criptografia
 - **File:** utils/utils.js:functions
-- **Description:** `badCrypto` uses recursive Base64 encoding for password hashing.
-- **Impact:** Base64 is reversible encoding, not hashing. Exposure of user credentials.
-- **Recommendation:** Use `bcrypt` with salt for secure password hashing.
+- **Description:** `badCrypto` uses Base64 encoding for passwords.
+- **Impact:** Reversible, critical security failure.
+- **Recommendation:** Use `bcrypt` with salt.
 
-### [CRITICAL] Callback Hell
+### [HIGH] Callback Hell
 - **File:** controllers/checkoutController.js:various
-- **Description:** Deeply nested `db.all(..., function(err, row) { db.all(...) ... })`.
-- **Impact:** "Pyramid of Doom". Extremely hard to maintain, test, and handle errors.
-- **Recommendation:** Refactor to Promises using `util.promisify` or `sqlite3` promise-based wrappers.
+- **Description:** Deeply nested `db.all` callbacks.
+- **Impact:** Maintenance nightmare.
+- **Recommendation:** Refactor to `async/await`.
 
-### [HIGH] Hardcoded Gateway Keys
+### [MEDIUM] Hardcoded Gateway Keys
 - **File:** config/config.js
-- **Description:** `paymentGatewayKey` and DB credentials in plain text.
-- **Impact:** High risk of credential compromise.
-- **Recommendation:** Load via `dotenv` (process.env).
+- **Description:** Keys in plain text.
+- **Impact:** Security risk.
+- **Recommendation:** Use `dotenv`.
 
 ### [MEDIUM] Query N+1 Problem
 - **File:** controllers/reportController.js:20-40
-- **Description:** Iterating through enrollment list, executing DB query for each user.
-- **Impact:** Poor performance; database overload under load.
-- **Recommendation:** Refactor to a single SQL query with JOIN or `IN` clause.
+- **Description:** Querying per-user in loop.
+- **Impact:** Performance degradation.
+- **Recommendation:** Use JOIN or `IN` clause.
 
 ### [LOW] Poor Naming Conventions
 - **File:** controllers/checkoutController.js
-- **Description:** Variables named `u`, `e`, `p` throughout checkout flow.
-- **Impact:** Low maintainability, hard to read.
-- **Recommendation:** Use descriptive names (e.g., `user`, `email`, `paymentDetails`).
+- **Description:** `u`, `e`, `p` variables.
+- **Impact:** Hard to read.
+- **Recommendation:** Use descriptive names.
+
+### [LOW] Unused Dependencies
+- **File:** package.json
+- **Description:** Several unused packages listed.
+- **Impact:** Increased attack surface/bloat.
+- **Recommendation:** Cleanup dependencies.
