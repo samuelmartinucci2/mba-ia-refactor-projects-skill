@@ -446,3 +446,86 @@ A skill deve atingir os seguintes mínimos em **todos os 3 projetos**:
 - **Projetos diferentes exigem adaptação** — a Fase 3 de um projeto já parcialmente organizado não vai ter as mesmas transformações de um monolito. Sua skill deve se adaptar ao contexto.
 - **Pedir confirmação na Fase 2 é obrigatório** — o humano deve revisar o relatório antes de qualquer modificação.
 - **Consulte as referências do curso** — revise a documentação oficial da ferramenta escolhida e os materiais das aulas para relembrar a estrutura e anatomia de uma skill.
+
+---
+
+## Análise Manual
+
+Abaixo estão os problemas identificados manualmente em cada um dos três projetos, organizados em formato de tabela para facilitar a leitura.
+
+### 1. code-smells-project (Python/Flask)
+
+| Severidade | Problema | Arquivo / Linhas | Justificativa / Impacto |
+| :--- | :--- | :--- | :--- |
+| **CRITICAL** | Vulnerabilidade de SQL Injection | `models.py` (várias funções) | Concatenação direta de strings nas consultas SQL (`"SELECT * FROM produtos WHERE id = " + str(id)`), permitindo que um invasor execute comandos arbitrários no banco de dados. |
+| **CRITICAL** | God Class / God Module | `models.py` e `app.py` | `models.py` agrupa toda a persistência, lógica de negócio e manipulação de múltiplos domínios (Produtos, Usuários, Pedidos). Isso viola diretamente o Princípio de Responsabilidade Única (SRP). |
+| **HIGH** | Credenciais Hardcoded | `app.py` (Linha 8) | Armazenamento de segredo sensível (`SECRET_KEY = "minha-chave-super-secreta-123"`) diretamente no código de inicialização. |
+| **HIGH** | Vazamento de Criptografia no Endpoint de Saúde | `controllers.py` (Função `status_sistema`) | O endpoint de monitoração `/health` expunha publicamente a `SECRET_KEY` ativa do servidor Flask em texto claro, permitindo a falsificação de sessões por atacantes externos. |
+| **MEDIUM** | Endpoints Inseguros (Raw SQL) | `app.py` (`/admin/query` e `/admin/reset-db`) | Exposição de endpoints perigosos que realizam ações destrutivas (reset) e executam queries SQL livres enviadas pelo usuário sem autenticação. |
+| **LOW** | Ausência de Logging Estruturado | `controllers.py` | Uso indiscriminado de instruções `print()` para auditoria e erros ao invés de usar o módulo nativo de `logging` do Python. |
+
+### 2. ecommerce-api-legacy (Node.js/Express)
+
+| Severidade | Problema | Arquivo / Linhas | Justificativa / Impacto |
+| :--- | :--- | :--- | :--- |
+| **CRITICAL** | Callback Hell / Pyramid of Doom | `src/AppManager.js` (Rota `/api/checkout`) | Lógica altamente aninhada acoplando tratamento HTTP, banco de dados e regras de checkout. Dificulta muito a manutenção e testes. |
+| **CRITICAL** | Algoritmo Criptográfico Falso | `src/utils.js` (Função `badCrypto`) | Uso de base64 repetitivo em um loop para "criptografar" a senha do usuário. Base64 é uma codificação reversível e não um algoritmo seguro de hashing de senha. |
+| **HIGH** | Credenciais Hardcoded | `src/utils.js` | Armazena chaves privadas de pagamento (`paymentGatewayKey`) e senhas do banco de dados no objeto global de configuração. |
+| **MEDIUM** | Query N+1 no Banco de Dados | `src/AppManager.js` (Rota `/api/admin/financial-report`) | Loops aninhados realizam chamadas sucessivas ao banco de dados para buscar registros de cada matrícula e aluno, em vez de consolidar em um único `JOIN`. |
+| **LOW** | Nomenclatura Pobre de Variáveis | `src/AppManager.js` (Rota `/api/checkout`) | Declaração de variáveis curtas e confusas (`let u`, `let e`, `let p`), violando boas práticas de clean code. |
+
+### 3. task-manager-api (Python/Flask)
+
+| Severidade | Problema | Arquivo / Linhas | Justificativa / Impacto |
+| :--- | :--- | :--- | :--- |
+| **CRITICAL** | Credenciais Hardcoded no Serviço de Email | `services/notification_service.py` (Linhas 8-9) | Senha de login (`senha123`) do Gmail SMTP em texto claro no arquivo de serviço. |
+| **HIGH** | Lógica de Negócio no Controller (Fat Controller) | `routes/task_routes.py` | A rota `/tasks` gerencia a verificação de atraso (`overdue`) de tasks e formatação manual de dados complexos que pertencem à camada Model ou Service. |
+| **HIGH** | Credenciais Hardcoded (Secret Key) | `app.py` (Linha 14) | Exposição direta do segredo (`SECRET_KEY = 'super-secret-key-123'`) no arquivo principal do servidor. |
+| **MEDIUM** | Tratamento de Erros Genérico | `routes/task_routes.py` (Rota `/tasks` [GET]) | Uso de bloco `try-except` genérico (bare except) capturando todas as falhas e retornando `Erro interno`, mascarando erros úteis para desenvolvimento. |
+| **LOW** | Uso Inconsistente de Dates / Timezones | `routes/task_routes.py` | Uso de `datetime.utcnow()` bruto que pode causar disparidade de fusos horários ao se comunicar com sistemas de frontend em outras localizações. |
+
+## Construção da Skill
+
+A skill `refactor-arch` foi estruturada para ser modular, eficiente no consumo de contexto e totalmente agnóstica de tecnologia. 
+
+### 1. Decisões de Design e Estruturação
+Adotamos o princípio de **Progressive Disclosure** (Divulgação Progressiva) recomendado no desenvolvimento de Skills para a Gemini CLI. O arquivo principal `SKILL.md` foi mantido limpo e focado no fluxo sequencial das 3 fases do desafio, enquanto os detalhes densos e as especificações de domínio foram movidos para a pasta `references/` em arquivos markdown dedicados:
+- `references/project_analysis.md`: Heurísticas para autodetecção da stack.
+- `references/anti_patterns.md`: Definição e classificação dos problemas e code smells.
+- `references/report_template.md`: Template estruturado do relatório.
+- `references/architecture_guidelines.md`: Regras do padrão MVC alvo.
+- `references/refactoring_playbook.md`: Exemplos concretos de transformações antes/depois.
+
+Esta abordagem economiza tokens valiosos, pois a IA só carrega os arquivos de referência necessários sob demanda em cada fase específica.
+
+### 2. Catálogo de Anti-patterns Escolhidos
+O catálogo engloba 9 problemas de severidades distribuídas:
+1. **SQL Injection (CRITICAL)**: Segurança extrema; as aplicações não parametrizavam dados em Flask e SQLite.
+2. **Pyramid of Doom / Callback Hell (CRITICAL)**: Problema severo em Node.js com SQLite nativo; corrigido para Promises limpas.
+3. **Falsa Criptografia (CRITICAL)**: Senhas mascaradas com Base64 sequencial em vez de algoritmo de hash de via única com salt.
+4. **God Class / God Module (CRITICAL)**: Arquivos monolíticos acoplando rotas, regras de negócio e persistência de múltiplos domínios.
+5. **Hardcoded Credentials (HIGH)**: Chaves de API, senhas SMTP e secrets expostos diretamente no repositório.
+6. **Fat Controllers (HIGH)**: Roteadores engolindo regras de negócio complexas.
+7. **Query N+1 Problem (MEDIUM)**: Consultas consecutivas ao banco feitas de dentro de loops, gerando gargalo de performance.
+8. **Tratamento de Erros Genérico (MEDIUM)**: Capturas sem log real (bare except) escondendo exceções originais.
+9. **APIs Deprecated (MEDIUM/LOW)**: Uso de funções obsoletas como `datetime.utcnow()` do Python 3.12 ou `before_first_request` no Flask.
+
+### 3. Independência de Tecnologia (Agnosticismo)
+Para garantir que a skill funcione de forma agnóstica de linguagem ou framework (Python/Flask, Node.js/Express, etc.):
+- As fases usam **heurísticas genéricas de mapeamento** baseadas na árvore de arquivos e dependências (`package.json`, `requirements.txt`).
+- O playbook de refatoração possui padrões paralelos para ambas as stacks (ex: correção de SQL Injection no Python com `sqlite3` e no Node.js com o driver `sqlite3` assíncrono).
+- O padrão MVC foi definido a nível arquitetural e conceitual (responsabilidades de cada camada), permitindo que a IA aplique as mesmas regras abstratas adaptadas às convenções idiomáticas de cada linguagem.
+
+### 4. Desafios Encontrados e Resolução
+- **Sincronismo no SQLite Node.js**: O sqlite3 nativo de Node.js usa callbacks pesados. O playbook orienta a envelopar as chamadas do driver em Promises nativas para que a IA possa usar `async/await`, eliminando o callback hell sem requerer pacotes de terceiros pesados.
+- **Isolamento de Camadas no MVC**: Garantir que os Models gerados ficassem 100% "cegos" para as requisições HTTP do Flask/Express. Definimos regras rigorosas impedindo o import de objetos globais HTTP (como `request` ou `req`) dentro dos models.
+
+---
+
+## Resultados
+
+A ser preenchido após a execução da skill...
+
+## Como Executar
+
+A ser preenchido ao final da implementação...
