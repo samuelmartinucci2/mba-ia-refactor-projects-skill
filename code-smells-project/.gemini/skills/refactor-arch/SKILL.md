@@ -42,15 +42,16 @@ DB tables:     [Detected tables list]
 ### Phase 2: Architecture Audit
 
 Audit the codebase to find anti-patterns, security bugs, and quality issues.
-1. Match the codebase files against the rules in [anti_patterns.md](references/anti_patterns.md). You must find **at least 5 issues** including:
+1. You MUST iterate over EVERY source file in the project.
+2. For each file, check against ALL anti-patterns listed in [anti_patterns.md](references/anti_patterns.md).
+3. Ensure you find **at least 5 issues** including:
    - At least 1 CRITICAL or HIGH severity issue
    - At least 2 MEDIUM severity issues
    - At least 2 LOW severity issues
-2. Ensure you detect deprecated APIs (e.g., `datetime.utcnow()` in Python, obsolete Express features).
-3. Generate a structured report following the exact format of [report_template.md](references/report_template.md).
-4. Save the generated report in `reports/audit-project-[number].md` (relative to the repo root, creating the `reports` directory if it does not exist).
-5. **PAUSE AND CONFIRM**: You MUST explicitly ask the user for confirmation before making any code modifications or moving to Phase 3.
-   - Example prompt: `Phase 2 complete. Proceed with refactoring (Phase 3)? [y/n]`
+4. You MUST include detection for deprecated APIs.
+5. Generate a structured report following the exact format of [report_template.md](references/report_template.md).
+6. Save the generated report in `reports/audit-project-[number].md`.
+7. **PAUSE AND CONFIRM**: You MUST explicitly ask the user for confirmation before making any code modifications or moving to Phase 3.
 
 ---
 

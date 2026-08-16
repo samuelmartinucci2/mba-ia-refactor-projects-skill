@@ -18,6 +18,12 @@ class UserModel {
     }
 
     static async delete(id) {
+        // Cascade delete: payments -> enrollments -> user
+        const enrollments = await dbAll("SELECT id FROM enrollments WHERE user_id = ?", [id]);
+        for (const enrollment of enrollments) {
+            await dbRun("DELETE FROM payments WHERE enrollment_id = ?", [enrollment.id]);
+        }
+        await dbRun("DELETE FROM enrollments WHERE user_id = ?", [id]);
         return await dbRun("DELETE FROM users WHERE id = ?", [id]);
     }
 }

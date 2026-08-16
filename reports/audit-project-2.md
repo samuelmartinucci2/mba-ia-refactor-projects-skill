@@ -1,44 +1,56 @@
 ================================
+PHASE 1: PROJECT ANALYSIS
+================================
+Language:      Node.js
+Framework:     Express 4.18.2
+Dependencies:  express, sqlite3, dotenv
+Domain:        E-commerce/Course Enrollment API
+Architecture:  Monolith with partially organized layers
+Source files:  20 files analyzed
+DB tables:     users, courses, enrollments, payments, audit_logs
+================================
+
+================================
 ARCHITECTURE AUDIT REPORT
 ================================
 Project: ecommerce-api-legacy
 Stack:   Node.js + Express
-Files:   3 analyzed | ~400 lines of code
+Files:   20 analyzed | ~600 lines of code
 
 ## Summary
-CRITICAL: 3 | HIGH: 0 | MEDIUM: 1 | LOW: 1
+CRITICAL: 1 | HIGH: 1 | MEDIUM: 2 | LOW: 1
 
 ## Findings
 
-### [CRITICAL] Callback Hell / Pyramid of Doom
-- **File:** src/AppManager.js:90-130
-- **Description:** A rota `/api/checkout` contém um profundo aninhamento lateral de funções de callback para queries SQLite sequenciais (selecionar usuário, inserir matrícula, inserir pagamento).
-- **Impact:** Código extremamente difícil de manter, depurar e testar. Qualquer erro no meio das transações é de difícil captura, o que pode causar inconsistências financeiras graves (como criar matrícula sem pagamento).
-- **Recommendation:** Refatorar o driver de banco de dados para utilizar Promises e reescrever a rota utilizando a sintaxe limpa e legível de `async/await`.
+### [CRITICAL] In-memory SQLite database
+- **File:** database.js:4
+- **Description:** Using `:memory:` database with no persistence.
+- **Impact:** Data lost on server restart; unsuitable for production.
+- **Recommendation:** Use persistent file-based SQLite or migrate to a robust DB (PostgreSQL).
 
-### [CRITICAL] Insecure Password Hashing (Falsa Criptografia)
-- **File:** src/utils.js:15-22
-- **Description:** A função `badCrypto` simula hashing de senha aplicando codificação Base64 repetitivamente em um loop de 10000 iterações.
-- **Impact:** Base64 é um algoritmo bidirecional e perfeitamente reversível, não um hash seguro de via única. As senhas dos alunos ficam expostas no banco de dados, violando políticas básicas de segurança.
-- **Recommendation:** Substituir o uso de Base64 pelo módulo de criptografia nativo do Node.js (`crypto`), aplicando por exemplo o algoritmo seguro `SHA-256` com salt ou usando `bcrypt`.
+### [HIGH] Business logic in controller
+- **File:** controllers/userController.js:10-40
+- **Description:** Controller directly interacts with DB, bypassing model layer.
+- **Impact:** Tight coupling; difficult to test.
+- **Recommendation:** Move DB interactions to model layer.
 
-### [CRITICAL] Hardcoded Credentials (Segredos no Código)
-- **File:** src/utils.js:1-7
-- **Description:** O arquivo centraliza segredos confidenciais em texto claro, incluindo chaves do gateway de pagamento em ambiente de produção (`paymentGatewayKey: "pk_live_1234567890abcdef"`) e senhas do banco de dados.
-- **Impact:** Exposição grave de dados financeiros e infraestrutura de produção caso o código seja versionado em repositórios públicos.
-- **Recommendation:** Extrair todas as credenciais sensíveis e chaves de APIs para variáveis de ambiente utilizando o arquivo `.env` e carregando-as com `process.env`.
+### [MEDIUM] Callback hell
+- **File:** database.js:6-18
+- **Description:** Deeply nested callbacks for DB initialization.
+- **Impact:** Low maintainability; hard to debug.
+- **Recommendation:** Use async/await throughout.
 
-### [MEDIUM] Query N+1 no Banco de Dados
-- **File:** src/AppManager.js:140-185
-- **Description:** O endpoint de relatório financeiro `/api/admin/financial-report` executa queries consecutivas no banco para cada curso, matrícula e aluno de forma síncrona dentro de loops `forEach`.
-- **Impact:** Overhead massivo de chamadas I/O ao banco de dados que degrada de forma exponencial a performance e escalabilidade do servidor conforme o volume de alunos e cursos cresce.
-- **Recommendation:** Reescrever a agregação utilizando uma única consulta SQL otimizada com cláusulas `JOIN` (`courses JOIN enrollments JOIN payments JOIN users`) trazendo os dados consolidados.
+### [MEDIUM] Missing environment configuration
+- **File:** config/config.js:1-5
+- **Description:** Hardcoded database settings.
+- **Impact:** Insecure; environment dependent configurations are missing.
+- **Recommendation:** Use environment variables via `dotenv` fully.
 
-### [LOW] Nomenclatura Pobre de Variáveis
-- **File:** src/AppManager.js:92-96
-- **Description:** Uso de variáveis com nomes curtos e sem significado contextual, como `let u` para usuário, `let e` para email e `let p` para senha na requisição de checkout.
-- **Impact:** Prejuízo na legibilidade do código e aumento do tempo de onboarding para novos desenvolvedores na codebase.
-- **Recommendation:** Adotar nomenclatura descritiva de variáveis de acordo com as boas práticas de Clean Code (ex: `username`, `email`, `password`).
+### [LOW] Lack of structured logging
+- **File:** src/app.js:20
+- **Description:** Using `console.log` for application events.
+- **Impact:** Poor traceability in production.
+- **Recommendation:** Implement a logging library like `winston`.
 
 ================================
 Total: 5 findings

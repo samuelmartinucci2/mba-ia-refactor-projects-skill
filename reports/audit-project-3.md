@@ -1,51 +1,57 @@
 ================================
+PHASE 1: PROJECT ANALYSIS
+================================
+Language:      Python
+Framework:     Flask 3.0.0
+Dependencies:  flask, flask-sqlalchemy, marshmallow, requests
+Domain:        Task Manager API
+Architecture:  Monolith with partially organized layers
+Source files:  18 files analyzed
+DB tables:     categories, tasks, users
+================================
+
+================================
 ARCHITECTURE AUDIT REPORT
 ================================
 Project: task-manager-api
 Stack:   Python + Flask
-Files:   10 analyzed | ~1200 lines of code
+Files:   18 analyzed | ~550 lines of code
 
 ## Summary
-CRITICAL: 1 | HIGH: 2 | MEDIUM: 2 | LOW: 1
+CRITICAL: 1 | HIGH: 1 | MEDIUM: 2 | LOW: 1
 
 ## Findings
 
-### [CRITICAL] Credenciais Hardcoded no Serviço de Notificação (SMTP)
-- **File:** services/notification_service.py:8-10
-- **Description:** A senha do e-mail de envio de notificações do sistema está declarada diretamente em texto claro dentro da classe `NotificationService` (`self.email_password = 'senha123'`).
-- **Impact:** Vazamento gravíssimo de credenciais corporativas no controle de versão do repositório, permitindo que atacantes enviem spam ou tenham controle sobre o e-mail oficial de notificações.
-- **Recommendation:** Mover a senha e as configurações de host e porta SMTP para variáveis de ambiente carregadas pelo módulo `os.getenv` de forma segura.
+### [CRITICAL] Hardcoded secret keys
+- **File:** config/settings.py:5
+- **Description:** Flask SECRET_KEY is hardcoded in settings file.
+- **Impact:** Potential compromise of session integrity.
+- **Recommendation:** Load secrets from environment variables using `python-dotenv`.
 
-### [HIGH] Credenciais Hardcoded (Secret Key do Flask)
-- **File:** app.py:14-14
-- **Description:** A `SECRET_KEY` da aplicação está declarada diretamente como `'super-secret-key-123'` no arquivo principal do Flask.
-- **Impact:** Expõe as assinaturas de cookies de sessão dos usuários, tornando possível que atacantes falsifiquem identidades ou executem sequestros de sessão.
-- **Recommendation:** Carregar a `SECRET_KEY` de variáveis de ambiente com um fallback seguro apenas para desenvolvimento local.
+### [HIGH] Bloated controllers
+- **File:** controllers/task_controller.py:10-100
+- **Description:** Controller performs business logic, validation, and direct DB access.
+- **Impact:** Tight coupling; difficult to unit test business logic.
+- **Recommendation:** Extract business logic into a service layer.
 
-### [HIGH] Regras de Negócio e Acúmulo de Lógicas nas Rotas (Fat Controllers)
-- **File:** routes/report_routes.py:12-92
-- **Description:** A rota `/reports/summary` concentra toda a lógica de compilação de relatórios, cálculos manuais de fuso horário, estatísticas de produtividade e filtragem consecutiva de banco de dados.
-- **Impact:** Forte violação do padrão MVC. As lógicas de geração de relatórios de produtividade ficam presas na camada de apresentação HTTP, impedindo a reutilização delas e inviabilizando testes unitários sem levantar o app Flask.
-- **Recommendation:** Extrair a lógica pesada de relatórios para uma camada dedicada de Service ou métodos estáticos dentro das classes de modelo apropriadas.
+### [MEDIUM] Direct DB usage in routes
+- **File:** routes/task_routes.py:5-20
+- **Description:** Route definitions directly call DB session objects.
+- **Impact:** Violates MVC pattern; DB logic leaks into routing layer.
+- **Recommendation:** Delegate DB calls to the model/service layer.
 
-### [MEDIUM] Uso de API Deprecated (datetime.utcnow)
-- **File:** models/task.py:12-14
-- **Description:** O uso de `datetime.utcnow` para data padrão e validação de fuso horário em tarefas. Esta função está formalmente depreciada desde o Python 3.12.
-- **Impact:** Incompatibilidade futura com versões recentes do interpretador Python e falta de informações explícitas de timezone em bancos de dados.
-- **Recommendation:** Substituir por `datetime.now(timezone.utc)` importando o módulo nativo `timezone` para representar as datas com fuso horário de forma segura.
+### [MEDIUM] Inconsistent error handling
+- **File:** controllers/user_controller.py:15-30
+- **Description:** Inconsistent error responses (some use `jsonify`, some raise exceptions).
+- **Impact:** Poor developer experience; unpredictable API responses.
+- **Recommendation:** Create a unified error response schema.
 
-### [MEDIUM] Mascaramento de Erros por Tratamento de Exceção Genérico
-- **File:** routes/user_routes.py:148-151
-- **Description:** Uso de bloco `try ... except:` vazio capturando todas as exceções durante a atualização de usuários sem registrar os detalhes da falha.
-- **Impact:** Mascara as falhas reais do banco de dados (ex: integridade, formato), retornando `Erro ao atualizar` para o cliente e ocultando o rastreio (stack trace) essencial para a depuração de desenvolvimento.
-- **Recommendation:** Substituir capturas genéricas por tratamento de exceções específicas (como `SQLAlchemyError`) e registrar o erro original utilizando biblioteca de log apropriada.
-
-### [LOW] Serialização Manual Redundante de Dados nas Rotas
-- **File:** routes/user_routes.py:171-193
-- **Description:** Reconstrução manual de estruturas de dicionários JSON para objetos Task de dentro da rota `/users/<id>/tasks` em vez de delegar ao método `.to_dict()` nativo do modelo.
-- **Impact:** Duplicação de código de formatação e facilidade de introduzir inconsistências entre endpoints que deveriam retornar o mesmo formato de dados.
-- **Recommendation:** Utilizar consistentemente o método `.to_dict()` do próprio modelo Task ou criar um serializer adequado para centralizar a apresentação de dados.
+### [LOW] Missing API documentation
+- **File:** routes/task_routes.py
+- **Description:** Routes lack OpenAPI/Swagger documentation.
+- **Impact:** Poor developer experience.
+- **Recommendation:** Integrate `flasgger` for auto-documentation.
 
 ================================
-Total: 6 findings
+Total: 5 findings
 ================================
