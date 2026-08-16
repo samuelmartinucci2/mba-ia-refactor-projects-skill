@@ -1,16 +1,4 @@
 ================================
-PHASE 1: PROJECT ANALYSIS
-================================
-Language:      Python
-Framework:     Flask 3.0.0
-Dependencies:  flask, flask-sqlalchemy, marshmallow, requests
-Domain:        Task Manager API
-Architecture:  Monolith with partially organized layers
-Source files:  18 files analyzed
-DB tables:     categories, tasks, users
-================================
-
-================================
 ARCHITECTURE AUDIT REPORT
 ================================
 Project: task-manager-api
@@ -18,40 +6,36 @@ Stack:   Python + Flask
 Files:   18 analyzed | ~550 lines of code
 
 ## Summary
-CRITICAL: 1 | HIGH: 1 | MEDIUM: 2 | LOW: 1
+CRITICAL: 1 | HIGH: 2 | MEDIUM: 1 | LOW: 1
 
 ## Findings
 
-### [CRITICAL] Hardcoded secret keys
-- **File:** config/settings.py:5
-- **Description:** Flask SECRET_KEY is hardcoded in settings file.
-- **Impact:** Potential compromise of session integrity.
-- **Recommendation:** Load secrets from environment variables using `python-dotenv`.
+### [CRITICAL] Hardcoded SMTP Credentials
+- **File:** services/notification_service.py:8-9
+- **Description:** Gmail password `senha123` hardcoded for SMTP connection.
+- **Impact:** Complete exposure of email account credentials.
+- **Recommendation:** Use environment variables for SMTP password.
 
-### [HIGH] Bloated controllers
-- **File:** controllers/task_controller.py:10-100
-- **Description:** Controller performs business logic, validation, and direct DB access.
-- **Impact:** Tight coupling; difficult to unit test business logic.
-- **Recommendation:** Extract business logic into a service layer.
+### [HIGH] Fat Controller
+- **File:** routes/task_routes.py:10-100
+- **Description:** Route definitions contain heavy business logic (task status checks, date validation, email dispatching).
+- **Impact:** Violates MVC; business logic not reusable or testable.
+- **Recommendation:** Move business logic to dedicated `TaskService`.
 
-### [MEDIUM] Direct DB usage in routes
-- **File:** routes/task_routes.py:5-20
-- **Description:** Route definitions directly call DB session objects.
-- **Impact:** Violates MVC pattern; DB logic leaks into routing layer.
-- **Recommendation:** Delegate DB calls to the model/service layer.
+### [HIGH] Hardcoded Secret Key
+- **File:** app.py:14
+- **Description:** `SECRET_KEY` hardcoded.
+- **Impact:** Session vulnerability.
+- **Recommendation:** Use `.env`.
 
-### [MEDIUM] Inconsistent error handling
-- **File:** controllers/user_controller.py:15-30
-- **Description:** Inconsistent error responses (some use `jsonify`, some raise exceptions).
-- **Impact:** Poor developer experience; unpredictable API responses.
-- **Recommendation:** Create a unified error response schema.
+### [MEDIUM] Bare Except Clause
+- **File:** routes/task_routes.py:30-40
+- **Description:** `try...except:` capturing all errors with no logging.
+- **Impact:** Root cause of failures invisible.
+- **Recommendation:** Capture specific exceptions and log stack traces.
 
-### [LOW] Missing API documentation
-- **File:** routes/task_routes.py
-- **Description:** Routes lack OpenAPI/Swagger documentation.
-- **Impact:** Poor developer experience.
-- **Recommendation:** Integrate `flasgger` for auto-documentation.
-
-================================
-Total: 5 findings
-================================
+### [LOW] Outdated API Usage
+- **File:** routes/task_routes.py:50
+- **Description:** Uses `datetime.utcnow()` (deprecated in Python 3.12).
+- **Impact:** Potential timezone bugs.
+- **Recommendation:** Use `datetime.now(timezone.utc)`.

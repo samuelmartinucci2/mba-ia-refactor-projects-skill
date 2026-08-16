@@ -1,16 +1,4 @@
 ================================
-PHASE 1: PROJECT ANALYSIS
-================================
-Language:      Node.js
-Framework:     Express 4.18.2
-Dependencies:  express, sqlite3, dotenv
-Domain:        E-commerce/Course Enrollment API
-Architecture:  Monolith with partially organized layers
-Source files:  20 files analyzed
-DB tables:     users, courses, enrollments, payments, audit_logs
-================================
-
-================================
 ARCHITECTURE AUDIT REPORT
 ================================
 Project: ecommerce-api-legacy
@@ -18,40 +6,36 @@ Stack:   Node.js + Express
 Files:   20 analyzed | ~600 lines of code
 
 ## Summary
-CRITICAL: 1 | HIGH: 1 | MEDIUM: 2 | LOW: 1
+CRITICAL: 2 | HIGH: 1 | MEDIUM: 1 | LOW: 1
 
 ## Findings
 
-### [CRITICAL] In-memory SQLite database
-- **File:** database.js:4
-- **Description:** Using `:memory:` database with no persistence.
-- **Impact:** Data lost on server restart; unsuitable for production.
-- **Recommendation:** Use persistent file-based SQLite or migrate to a robust DB (PostgreSQL).
+### [CRITICAL] Falsa Criptografia
+- **File:** utils/utils.js:functions
+- **Description:** `badCrypto` uses recursive Base64 encoding for password hashing.
+- **Impact:** Base64 is reversible encoding, not hashing. Exposure of user credentials.
+- **Recommendation:** Use `bcrypt` with salt for secure password hashing.
 
-### [HIGH] Business logic in controller
-- **File:** controllers/userController.js:10-40
-- **Description:** Controller directly interacts with DB, bypassing model layer.
-- **Impact:** Tight coupling; difficult to test.
-- **Recommendation:** Move DB interactions to model layer.
+### [CRITICAL] Callback Hell
+- **File:** controllers/checkoutController.js:various
+- **Description:** Deeply nested `db.all(..., function(err, row) { db.all(...) ... })`.
+- **Impact:** "Pyramid of Doom". Extremely hard to maintain, test, and handle errors.
+- **Recommendation:** Refactor to Promises using `util.promisify` or `sqlite3` promise-based wrappers.
 
-### [MEDIUM] Callback hell
-- **File:** database.js:6-18
-- **Description:** Deeply nested callbacks for DB initialization.
-- **Impact:** Low maintainability; hard to debug.
-- **Recommendation:** Use async/await throughout.
+### [HIGH] Hardcoded Gateway Keys
+- **File:** config/config.js
+- **Description:** `paymentGatewayKey` and DB credentials in plain text.
+- **Impact:** High risk of credential compromise.
+- **Recommendation:** Load via `dotenv` (process.env).
 
-### [MEDIUM] Missing environment configuration
-- **File:** config/config.js:1-5
-- **Description:** Hardcoded database settings.
-- **Impact:** Insecure; environment dependent configurations are missing.
-- **Recommendation:** Use environment variables via `dotenv` fully.
+### [MEDIUM] Query N+1 Problem
+- **File:** controllers/reportController.js:20-40
+- **Description:** Iterating through enrollment list, executing DB query for each user.
+- **Impact:** Poor performance; database overload under load.
+- **Recommendation:** Refactor to a single SQL query with JOIN or `IN` clause.
 
-### [LOW] Lack of structured logging
-- **File:** src/app.js:20
-- **Description:** Using `console.log` for application events.
-- **Impact:** Poor traceability in production.
-- **Recommendation:** Implement a logging library like `winston`.
-
-================================
-Total: 5 findings
-================================
+### [LOW] Poor Naming Conventions
+- **File:** controllers/checkoutController.js
+- **Description:** Variables named `u`, `e`, `p` throughout checkout flow.
+- **Impact:** Low maintainability, hard to read.
+- **Recommendation:** Use descriptive names (e.g., `user`, `email`, `paymentDetails`).

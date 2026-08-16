@@ -1,63 +1,41 @@
 ================================
-PHASE 1: PROJECT ANALYSIS
-================================
-Language:      Python
-Framework:     Flask 3.1.1
-Dependencies:  flask, flask-cors
-Domain:        E-commerce API
-Architecture:  Monolith with partially organized layers
-Source files:  15 files analyzed
-DB tables:     produtos, usuarios, pedidos, itens_pedido
-================================
-
-================================
 ARCHITECTURE AUDIT REPORT
 ================================
 Project: code-smells-project
 Stack:   Python + Flask
-Files:   15 analyzed | ~500 lines of code
+Files:   4 analyzed | ~500 lines of code
 
 ## Summary
-CRITICAL: 1 | HIGH: 1 | MEDIUM: 2 | LOW: 1
+CRITICAL: 2 | HIGH: 1 | MEDIUM: 1 | LOW: 1
 
 ## Findings
 
-### [CRITICAL] Raw SQL queries in data layer
-- **File:** database.py:12-65
-- **Description:** Direct use of sqlite3.cursor.execute with raw SQL strings.
-- **Impact:** Vulnerable to SQL Injection; lacks connection management.
-- **Recommendation:** Implement ORM (SQLAlchemy) and connection pooling.
+### [CRITICAL] SQL Injection
+- **File:** models/pedido.py:various
+- **Description:** Raw SQL built via concatenation or f-strings (e.g., `f"SELECT * FROM ... WHERE id = {id}"`).
+- **Impact:** Attacker can execute arbitrary SQL queries.
+- **Recommendation:** Use parameterized queries (`?` placeholder) via `cursor.execute(sql, (param,))`.
 
-### [HIGH] Monolithic routing in app.py
-- **File:** app.py:1-40
-- **Description:** Business logic mixed with route definitions in a single file.
-- **Impact:** Poor maintainability and scalability.
-- **Recommendation:** Use Flask Blueprints to separate route handling into controllers.
+### [CRITICAL] God Class
+- **File:** models/pedido.py:1-150
+- **Description:** Single file handles order creation, item insertion, inventory updates, report generation, and status management.
+- **Impact:** Tight coupling, impossible to test components in isolation.
+- **Recommendation:** Split into `OrderService`, `InventoryService`, `ReportService`.
 
-### [MEDIUM] Duplicated validation logic
-- **File:** controllers/produto_controller.py:23-53,88-100
-- **Description:** Input validation logic is repeated across POST and PUT methods.
-- **Impact:** Risk of inconsistent behavior; hard to update.
-- **Recommendation:** Extract validation into a dedicated schema validator class.
+### [HIGH] Hardcoded Secret Key
+- **File:** app.py:8
+- **Description:** `SECRET_KEY` hardcoded as string literal.
+- **Impact:** Risk of credential leakage in VCS.
+- **Recommendation:** Use `os.getenv('SECRET_KEY')` with `.env` file.
 
-### [MEDIUM] No centralized error handling
-- **File:** controllers/produto_controller.py:5-10
-- **Description:** Each route handler uses try/except blocks returning JSON error responses manually.
-- **Impact:** Repetitive code; inconsistent error format.
-- **Recommendation:** Implement a global error handler middleware.
+### [MEDIUM] Lack of structured logging
+- **File:** controllers/pedido_controller.py
+- **Description:** Usage of `print()` for critical application flow events.
+- **Impact:** No traceability in production environments.
+- **Recommendation:** Use standard library `logging` module with structured formatting.
 
-### [LOW] Hardcoded error messages
-- **File:** controllers/produto_controller.py:34-45
-- **Description:** Error messages are hardcoded strings in controllers.
-- **Impact:** Hard to localize or maintain consistent messages.
-- **Recommendation:** Use a centralized constants file or configuration for messages.
-
-### [LOW] Missing docstrings
-- **File:** controllers/usuario_controller.py, models/produto.py
-- **Description:** Functions and classes lack docstrings.
-- **Impact:** Low maintainability/readability.
-- **Recommendation:** Add docstrings to all public methods/classes.
-
-================================
-Total: 6 findings
-================================
+### [LOW] Magic Numbers in Business Logic
+- **File:** models/pedido.py:120-130
+- **Description:** Hardcoded discount thresholds (1000, 5000, 10000).
+- **Impact:** Fragile code; hard to change business rules.
+- **Recommendation:** Define thresholds in configuration constants.
