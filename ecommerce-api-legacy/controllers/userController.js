@@ -5,7 +5,7 @@ const deleteUser = async (req, res, next) => {
         const id = req.params.id;
         await UserModel.delete(id);
         
-        return res.status(200).send("Usuário deletado, mas as matrículas e pagamentos ficaram sujos no banco.");
+        return res.status(200).json({ mensagem: "Usuário e dados relacionados deletados com sucesso." });
     } catch (err) {
         next(err);
     }

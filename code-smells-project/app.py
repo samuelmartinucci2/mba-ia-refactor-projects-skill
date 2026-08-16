@@ -1,14 +1,19 @@
 from flask import Flask
 from flask_cors import CORS
 from config.settings import Config
-from database import get_db
+from database import db, init_db, get_db
 from routes.routes import setup_routes
 from middlewares.error_handler import setup_error_handlers
 
 app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = Config.SQLALCHEMY_DATABASE_URI
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = Config.SQLALCHEMY_TRACK_MODIFICATIONS
 app.config["SECRET_KEY"] = Config.SECRET_KEY
 app.config["DEBUG"] = Config.DEBUG
 CORS(app)
+
+# Initialize database
+init_db(app)
 
 # Registra tratamento centralizado de erros
 setup_error_handlers(app)

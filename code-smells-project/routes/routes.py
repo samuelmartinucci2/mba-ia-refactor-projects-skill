@@ -55,25 +55,3 @@ def setup_routes(app):
         db.commit()
         print("!!! BANCO DE DADOS RESETADO !!!")
         return jsonify({"mensagem": "Banco de dados resetado", "sucesso": True}), 200
-
-    @app.route("/admin/query", methods=["POST"])
-    def executar_query():
-        # Added a basic authorization layer/warning or maintained for testing, but let's make it secure or parameterized if needed, or simply maintain compatibility
-        dados = request.get_json()
-        query = dados.get("sql", "")
-        if not query:
-            return jsonify({"erro": "Query não informada"}), 400
-
-        db = get_db()
-        cursor = db.cursor()
-        try:
-            cursor.execute(query)
-            if query.strip().upper().startswith("SELECT"):
-                rows = cursor.fetchall()
-                result = [dict(row) for row in rows]
-                return jsonify({"dados": result, "sucesso": True}), 200
-            else:
-                db.commit()
-                return jsonify({"mensagem": "Query executada", "sucesso": True}), 200
-        except Exception as e:
-            return jsonify({"erro": str(e)}), 500

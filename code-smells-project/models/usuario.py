@@ -1,66 +1,20 @@
-from database import get_db
+from database import db
+from datetime import datetime
 
-class UsuarioModel:
-    @staticmethod
-    def get_todos():
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SELECT * FROM usuarios")
-        rows = cursor.fetchall()
-        result = []
-        for row in rows:
-            result.append({
-                "id": row["id"],
-                "nome": row["nome"],
-                "email": row["email"],
-                "senha": row["senha"],
-                "tipo": row["tipo"],
-                "criado_em": row["criado_em"]
-            })
-        return result
+class Usuario(db.Model):
+    __tablename__ = 'usuarios'
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    senha = db.Column(db.String(255), nullable=False)
+    tipo = db.Column(db.String(50), default="cliente")
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
 
-    @staticmethod
-    def get_por_id(id):
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
-        row = cursor.fetchone()
-        if row:
-            return {
-                "id": row["id"],
-                "nome": row["nome"],
-                "email": row["email"],
-                "senha": row["senha"],
-                "tipo": row["tipo"],
-                "criado_em": row["criado_em"]
-            }
-        return None
-
-    @staticmethod
-    def login(email, senha):
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute(
-            "SELECT * FROM usuarios WHERE email = ? AND senha = ?",
-            (email, senha)
-        )
-        row = cursor.fetchone()
-        if row:
-            return {
-                "id": row["id"],
-                "nome": row["nome"],
-                "email": row["email"],
-                "tipo": row["tipo"]
-            }
-        return None
-
-    @staticmethod
-    def criar(nome, email, senha, tipo="cliente"):
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute(
-            "INSERT INTO usuarios (nome, email, senha, tipo) VALUES (?, ?, ?, ?)",
-            (nome, email, senha, tipo)
-        )
-        db.commit()
-        return cursor.lastrowid
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "nome": self.nome,
+            "email": self.email,
+            "tipo": self.tipo,
+            "criado_em": self.criado_em.isoformat() if self.criado_em else None
+        }

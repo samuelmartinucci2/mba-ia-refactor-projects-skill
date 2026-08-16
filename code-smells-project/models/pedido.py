@@ -1,158 +1,37 @@
-from database import get_db
+from database import db
+from datetime import datetime
 
-class PedidoModel:
-    @staticmethod
-    def criar(usuario_id, itens):
-        db = get_db()
-        cursor = db.cursor()
+class ItemPedido(db.Model):
+    __tablename__ = 'itens_pedido'
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer, db.ForeignKey('pedidos.id'), nullable=False)
+    produto_id = db.Column(db.Integer, db.ForeignKey('produtos.id'), nullable=False)
+    quantidade = db.Column(db.Integer, nullable=False)
+    preco_unitario = db.Column(db.Float, nullable=False)
+    produto = db.relationship('Produto')
 
-        total = 0
+class Pedido(db.Model):
+    __tablename__ = 'pedidos'
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    status = db.Column(db.String(50), default='pendente')
+    total = db.Column(db.Float, nullable=False)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    itens = db.relationship('ItemPedido', backref='pedido', lazy=True)
 
-        # Parameterized Queries
-        for item in itens:
-            cursor.execute("SELECT * FROM produtos WHERE id = ?", (item["produto_id"],))
-            produto = cursor.fetchone()
-            if produto is None:
-                return {"erro": f"Produto {item['produto_id']} não encontrado"}
-            if produto["estoque"] < item["quantidade"]:
-                return {"erro": f"Estoque insuficiente para {produto['nome']}"}
-            total += (produto["preco"] * item["quantidade"])
-
-        cursor.execute(
-            "INSERT INTO pedidos (usuario_id, status, total) VALUES (?, 'pendente', ?)",
-            (usuario_id, total)
-        )
-        pedido_id = cursor.lastrowid
-
-        for item in itens:
-            cursor.execute("SELECT preco FROM produtos WHERE id = ?", (item["produto_id"],))
-            produto = cursor.fetchone()
-            cursor.execute(
-                "INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)",
-                (pedido_id, item["produto_id"], item["quantidade"], produto["preco"])
-            )
-
-            cursor.execute(
-                "UPDATE produtos SET estoque = estoque - ? WHERE id = ?",
-                (item["quantidade"], item["produto_id"])
-            )
-
-        db.commit()
-        return {"pedido_id": pedido_id, "total": total}
-
-    @staticmethod
-    def get_por_usuario(usuario_id):
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SELECT * FROM pedidos WHERE usuario_id = ?", (usuario_id,))
-        rows = cursor.fetchall()
-        result = []
-        for row in rows:
-            pedido = {
-                "id": row["id"],
-                "usuario_id": row["usuario_id"],
-                "status": row["status"],
-                "total": row["total"],
-                "criado_em": row["criado_em"],
-                "itens": []
-            }
-
-            cursor2 = db.cursor()
-            cursor2.execute("SELECT * FROM itens_pedido WHERE pedido_id = ?", (row["id"],))
-            itens = cursor2.fetchall()
-            for item in itens:
-                cursor3 = db.cursor()
-                cursor3.execute("SELECT nome FROM produtos WHERE id = ?", (item["produto_id"],))
-                prod = cursor3.fetchone()
-                pedido["itens"].append({
-                    "produto_id": item["produto_id"],
-                    "produto_nome": prod["nome"] if prod else "Desconhecido",
-                    "quantidade": item["quantidade"],
-                    "preco_unitario": item["preco_unitario"]
-                })
-            result.append(pedido)
-        return result
-
-    @staticmethod
-    def get_todos():
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SELECT * FROM pedidos")
-        rows = cursor.fetchall()
-        result = []
-        for row in rows:
-            pedido = {
-                "id": row["id"],
-                "usuario_id": row["usuario_id"],
-                "status": row["status"],
-                "total": row["total"],
-                "criado_em": row["criado_em"],
-                "itens": []
-            }
-            cursor2 = db.cursor()
-            cursor2.execute("SELECT * FROM itens_pedido WHERE pedido_id = ?", (row["id"],))
-            itens = cursor2.fetchall()
-            for item in itens:
-                cursor3 = db.cursor()
-                cursor3.execute("SELECT nome FROM produtos WHERE id = ?", (item["produto_id"],))
-                prod = cursor3.fetchone()
-                pedido["itens"].append({
-                    "produto_id": item["produto_id"],
-                    "produto_nome": prod["nome"] if prod else "Desconhecido",
-                    "quantidade": item["quantidade"],
-                    "preco_unitario": item["preco_unitario"]
-                })
-            result.append(pedido)
-        return result
-
-    @staticmethod
-    def atualizar_status(pedido_id, novo_status):
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute(
-            "UPDATE pedidos SET status = ? WHERE id = ?",
-            (novo_status, pedido_id)
-        )
-        db.commit()
-        return True
-
-    @staticmethod
-    def relatorio_vendas():
-        db = get_db()
-        cursor = db.cursor()
-
-        cursor.execute("SELECT COUNT(*) FROM pedidos")
-        total_pedidos = cursor.fetchone()[0]
-
-        cursor.execute("SELECT SUM(total) FROM pedidos")
-        faturamento = cursor.fetchone()[0]
-        if faturamento is None:
-            faturamento = 0
-
-        cursor.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'pendente'")
-        pendentes = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'aprovado'")
-        aprovados = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'cancelado'")
-        cancelados = cursor.fetchone()[0]
-
-        desconto = 0
-        if faturamento > 10000:
-            desconto = faturamento * 0.1
-        elif faturamento > 5000:
-            desconto = faturamento * 0.05
-        elif faturamento > 1000:
-            desconto = faturamento * 0.02
-
+    def to_dict(self):
         return {
-            "total_pedidos": total_pedidos,
-            "faturamento_bruto": round(faturamento, 2),
-            "desconto_aplicavel": round(desconto, 2),
-            "faturamento_liquido": round(faturamento - desconto, 2),
-            "pedidos_pendentes": pendentes,
-            "pedidos_aprovados": aprovados,
-            "pedidos_cancelados": cancelados,
-            "ticket_medio": round(faturamento / total_pedidos, 2) if total_pedidos > 0 else 0
+            "id": self.id,
+            "usuario_id": self.usuario_id,
+            "status": self.status,
+            "total": self.total,
+            "criado_em": self.criado_em.isoformat() if self.criado_em else None,
+            "itens": [
+                {
+                    "produto_id": item.produto_id,
+                    "produto_nome": item.produto.nome if item.produto else "Desconhecido",
+                    "quantidade": item.quantidade,
+                    "preco_unitario": item.preco_unitario
+                } for item in self.itens
+            ]
         }

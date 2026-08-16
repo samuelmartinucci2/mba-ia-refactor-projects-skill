@@ -41,7 +41,7 @@ Este catálogo define os principais anti-patterns arquiteturais, problemas de se
 ---
 
 ## 5. Hardcoded Credentials (Segredos no Código)
-* **Severidade**: **HIGH**
+* **Severidade**: **CRITICAL**
 * **Sinais de Detecção**:
   - Senhas, chaves de API, segredos de sessões (`SECRET_KEY`), ou credenciais SMTP declarados diretamente em strings ou objetos de configuração no código-fonte.
   - Exemplos: `app.config["SECRET_KEY"] = "minha-chave-super-secreta"` ou `paymentGatewayKey: "pk_live_..."`.
@@ -49,7 +49,15 @@ Este catálogo define os principais anti-patterns arquiteturais, problemas de se
 
 ---
 
-## 6. Fat Controllers (Controllers / Rotas com Regras de Negócio Pesadas)
+## 6. Sensitive Data Exposure in Health Endpoints (Vazamento de Segredos no Health Check)
+* **Severidade**: **CRITICAL**
+* **Sinais de Detecção**:
+  - Inclusão direta de chaves privadas, segredos criptográficos (`SECRET_KEY`), chaves de API ou senhas de banco na resposta JSON exposta por endpoints de status e saúde pública (ex: `/health`, `/status`, `/status-sistema`).
+* **Impacto**: Usuários não autenticados podem descobrir segredos estruturais que dão acesso total à falsificação de sessões, assinaturas e dados de integridade da API.
+
+---
+
+## 7. Fat Controllers (Controllers / Rotas com Regras de Negócio Pesadas)
 * **Severidade**: **HIGH**
 * **Sinais de Detecção**:
   - Arquivos de rotas contendo regras de negócio complexas, cálculos financeiros, atualizações diretas de estoque, ou orquestração manual de notificações (e-mail, SMS).
@@ -57,7 +65,7 @@ Este catálogo define os principais anti-patterns arquiteturais, problemas de se
 
 ---
 
-## 7. Query N+1 Problem (Consultas em Loop)
+## 8. Query N+1 Problem (Consultas em Loop)
 * **Severidade**: **MEDIUM**
 * **Sinais de Detecção**:
   - Execução de consultas SQL dentro de loops interativos (`for`, `forEach`, `while`).
@@ -66,7 +74,7 @@ Este catálogo define os principais anti-patterns arquiteturais, problemas de se
 
 ---
 
-## 8. Tratamento de Erros Genérico ou Ocultação de Exceções (Bare Except)
+## 9. Tratamento de Erros Genérico ou Ocultação de Exceções (Bare Except)
 * **Severidade**: **MEDIUM**
 * **Sinais de Detecção**:
   - Captura genérica de erros com `try ... except Exception:` ou `except:` em Python sem registrar o stack trace real ou levantar novamente o erro.
@@ -75,7 +83,7 @@ Este catálogo define os principais anti-patterns arquiteturais, problemas de se
 
 ---
 
-## 9. Uso de APIs Deprecated (Obsoletas)
+## 10. Uso de APIs Deprecated (Obsoletas)
 * **Severidade**: **MEDIUM** ou **LOW**
 * **Sinais de Detecção**:
   - **Python**: Uso de `datetime.utcnow()` ou `datetime.utcfromtimestamp()` (deprecated desde o Python 3.12, substituído por timezone-aware: `datetime.now(timezone.utc)`).

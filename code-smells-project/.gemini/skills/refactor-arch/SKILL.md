@@ -44,10 +44,7 @@ DB tables:     [Detected tables list]
 Audit the codebase to find anti-patterns, security bugs, and quality issues.
 1. You MUST iterate over EVERY source file in the project.
 2. For each file, check against ALL anti-patterns listed in [anti_patterns.md](references/anti_patterns.md).
-3. Ensure you find **at least 5 issues** including:
-   - At least 1 CRITICAL or HIGH severity issue
-   - At least 2 MEDIUM severity issues
-   - At least 2 LOW severity issues
+3. Find ALL architectural, security, and quality issues. Be exhaustive; do not stop at a minimum count.
 4. You MUST include detection for deprecated APIs.
 5. Generate a structured report following the exact format of [report_template.md](references/report_template.md).
 6. Save the generated report in `reports/audit-project-[number].md`.
