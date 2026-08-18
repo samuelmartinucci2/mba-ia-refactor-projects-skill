@@ -245,3 +245,39 @@ from datetime import datetime, timezone
 # Utiliza fuso horário correto timezone-aware (UTC) recomendado modernos
 data_limite = datetime.now(timezone.utc)
 ```
+
+---
+
+## Padrão 10: Proteção de Rotas Administrativas/Destrutivas (Python/Flask)
+
+### Antes:
+```python
+@app.route("/admin/reset-db", methods=["DELETE"])
+def reset_db():
+    # Sem autenticação, qualquer um apaga o banco
+    db.execute("DELETE FROM usuarios")
+    return jsonify({"msg": "Banco resetado"}), 200
+```
+
+### Depois:
+```python
+from functools import wraps
+from flask import request, jsonify
+
+# Decorador de autenticação simples
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verifica token ou credencial admin na requisição
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or auth_header != "Bearer segredo-admin-da-app":
+            return jsonify({"erro": "Acesso não autorizado"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route("/admin/reset-db", methods=["DELETE"])
+@admin_required # Protege a rota
+def reset_db():
+    db.execute("DELETE FROM usuarios")
+    return jsonify({"msg": "Banco resetado"}), 200
+```
