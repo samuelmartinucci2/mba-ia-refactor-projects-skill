@@ -44,6 +44,7 @@ def setup_routes(app):
         })
 
     @app.route("/admin/reset-db", methods=["POST"])
+    @admin_required
     def reset_database():
         # Cleaned up and made safe/controlled
         db = get_db()
@@ -55,3 +56,15 @@ def setup_routes(app):
         db.commit()
         print("!!! BANCO DE DADOS RESETADO !!!")
         return jsonify({"mensagem": "Banco de dados resetado", "sucesso": True}), 200
+
+def admin_required(f):
+    from functools import wraps
+    from flask import request, jsonify
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verifica token ou credencial admin na requisição
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or auth_header != "Bearer segredo-admin-da-app":
+            return jsonify({"erro": "Acesso não autorizado"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
