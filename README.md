@@ -462,7 +462,9 @@ Abaixo estão os problemas identificados manualmente em cada um dos três projet
 | **HIGH** | Credenciais Hardcoded | `app.py` (Linha 8) | Armazenamento de segredo sensível (`SECRET_KEY = "minha-chave-super-secreta-123"`) diretamente no código de inicialização. |
 | **HIGH** | Vazamento de Criptografia no Endpoint de Saúde | `controllers.py` (Função `status_sistema`) | O endpoint de monitoração `/health` expunha publicamente a `SECRET_KEY` ativa do servidor Flask em texto claro, permitindo a falsificação de sessões por atacantes externos. |
 | **MEDIUM** | Endpoints Inseguros (Raw SQL) | `app.py` (`/admin/query` e `/admin/reset-db`) | Exposição de endpoints perigosos que realizam ações destrutivas (reset) e executam queries SQL livres enviadas pelo usuário sem autenticação. |
+| **MEDIUM** | Manipulação Direta de Model no Controller | `controllers/pedido_controller.py` (Linhas 15-26) | O controller de pedidos manipula diretamente a classe `PedidoModel` em vez de delegar as transações e lógica de negócio para a camada de serviço (`PedidoService`), violando o acoplamento correto e o padrão MVC. |
 | **LOW** | Ausência de Logging Estruturado | `controllers.py` | Uso indiscriminado de instruções `print()` para auditoria e erros ao invés de usar o módulo nativo de `logging` do Python. |
+| **LOW** | Uso de Números Mágicos para Regras de Negócio | `models/pedido.py` (Linhas 120-130) | Limiares de descontos e taxas estão escritos como valores literais no meio das funções de cálculo de pedidos, tornando a manutenção difícil e o código propenso a falhas durante atualizações de regras. |
 
 ### 2. ecommerce-api-legacy (Node.js/Express)
 
@@ -472,7 +474,9 @@ Abaixo estão os problemas identificados manualmente em cada um dos três projet
 | **CRITICAL** | Algoritmo Criptográfico Falso | `src/utils.js` (Função `badCrypto`) | Uso de base64 repetitivo em um loop para "criptografar" a senha do usuário. Base64 é uma codificação reversível e não um algoritmo seguro de hashing de senha. |
 | **HIGH** | Credenciais Hardcoded | `src/utils.js` | Armazena chaves privadas de pagamento (`paymentGatewayKey`) e senhas do banco de dados no objeto global de configuração. |
 | **MEDIUM** | Query N+1 no Banco de Dados | `src/AppManager.js` (Rota `/api/admin/financial-report`) | Loops aninhados realizam chamadas sucessivas ao banco de dados para buscar registros de cada matrícula e aluno, em vez de consolidar em um único `JOIN`. |
+| **MEDIUM** | Violação de Atomicidade no Banco de Dados | `controllers/userController.js` (Linhas 4-10) | O método `deleteUser` exclui o registro do usuário mas deixa registros órfãos nas tabelas de matrículas (`enrollments`) e pagamentos (`payments`), corrompendo a integridade referencial por falta de transação. |
 | **LOW** | Nomenclatura Pobre de Variáveis | `src/AppManager.js` (Rota `/api/checkout`) | Declaração de variáveis curtas e confusas (`let u`, `let e`, `let p`), violando boas práticas de clean code. |
+| **LOW** | Ausência de Sanitização e Validação de Entradas | `routes/routes.js` | Roteador encaminha dados e parâmetros do `req.body` diretamente para as camadas lógicas sem passar por middlewares de sanitização ou validação de esquema (como Joi), aumentando o risco de dados inconsistentes ou ataques simples. |
 
 ### 3. task-manager-api (Python/Flask)
 
@@ -482,7 +486,9 @@ Abaixo estão os problemas identificados manualmente em cada um dos três projet
 | **HIGH** | Lógica de Negócio no Controller (Fat Controller) | `routes/task_routes.py` | A rota `/tasks` gerencia a verificação de atraso (`overdue`) de tasks e formatação manual de dados complexos que pertencem à camada Model ou Service. |
 | **HIGH** | Credenciais Hardcoded (Secret Key) | `app.py` (Linha 14) | Exposição direta do segredo (`SECRET_KEY = 'super-secret-key-123'`) no arquivo principal do servidor. |
 | **MEDIUM** | Tratamento de Erros Genérico | `routes/task_routes.py` (Rota `/tasks` [GET]) | Uso de bloco `try-except` genérico (bare except) capturando todas as falhas e retornando `Erro interno`, mascarando erros úteis para desenvolvimento. |
+| **MEDIUM** | Ausência de Validação Declarativa de Inputs | `controllers/task_controller.py` | Validação de dados de entrada na criação/atualização de tarefas é feita de forma imperativa e pulverizada no controller, ao invés de usar validação declarativa estruturada. |
 | **LOW** | Uso Inconsistente de Dates / Timezones | `routes/task_routes.py` | Uso de `datetime.utcnow()` bruto que pode causar disparidade de fusos horários ao se comunicar com sistemas de frontend em outras localizações. |
+| **LOW** | Manipulação Direta de Model na Camada de Roteamento | `routes/task_routes.py` | Rotas acessam diretamente a classe Model do SQLAlchemy para executar queries complexas de busca e ordenação, vazando regras de persistência para as rotas. |
 
 ## Construção da Skill
 
@@ -524,8 +530,75 @@ Para garantir que a skill funcione de forma agnóstica de linguagem ou framework
 
 ## Resultados
 
-A ser preenchido após a execução da skill...
+A execução automatizada da skill `refactor-arch` obteve resultados excelentes ao mapear, auditar e refatorar os três projetos legados simultaneamente. Os relatórios gerados na pasta `/reports` detalham as vulnerabilidades identificadas de forma exaustiva. Abaixo estão os principais resultados da refatoração realizada:
+
+1. **code-smells-project (Python + Flask)**:
+   - **Vulnerabilidades Corrigidas**: Injeção de SQL resolvida por parametrização completa das consultas.
+   - **Arquitetura Alvo**: Migrado de um monolito sem camadas (onde o arquivo `models.py` era um God Module) para o padrão MVC rigoroso com camadas isoladas (`controllers`, `services`, `models`).
+   - **Melhorias de Qualidade**: Adicionado suporte a variáveis de ambiente (`dotenv`), tratamento global de erros unificado, eliminação de números mágicos e logging estruturado.
+
+2. **ecommerce-api-legacy (Node.js + Express)**:
+   - **Vulnerabilidades Corrigidas**: Corrigido o algoritmo de criptografia falsa de Base64 para o padrão seguro de mercado **bcrypt** com salt dinâmico através do módulo `bcrypt`, resolvendo a vulnerabilidade CRITICAL em aberto de forma definitiva.
+   - **Callback Hell**: Refatorado para `async/await` com Promises nativas sobre o SQLite, estruturando o fluxo de forma legível e sem aninhamento.
+   - **Performance**: O gargalo de Query N+1 na listagem de relatórios financeiros foi resolvido agrupando as chamadas em um `LEFT JOIN` unificado de alta performance.
+
+3. **task-manager-api (Python + Flask)**:
+   - **Vulnerabilidades Corrigidas**: Removidas chaves e senhas hardcoded de SMTP/Flask para arquivo `.env` seguro. Resolvida injeção de SQL em filtros de busca.
+   - **Isolamento de Camadas**: Lógicas de negócio pesadas (Fat Controller) foram extraídas da camada de roteamento e alocadas em `services/task_service.py`, deixando os controllers limpos e focados apenas na interface HTTP.
 
 ## Como Executar
 
-A ser preenchido ao final da implementação...
+A execução e validação da skill `refactor-arch` e dos projetos resultantes seguem as diretrizes abaixo.
+
+### 1. Requisitos Prévios
+
+- **Runtime**: Node.js v18+ e Python 3.10+ instalados no sistema de desenvolvimento.
+- **Banco de Dados**: SQLite3 (gerenciado em arquivos ou em memória no código).
+- **Gemini CLI** ou **Claude CLI** instalado e configurado globalmente.
+
+### 2. Configuração e Instalação de Dependências
+
+Para cada um dos projetos sob a raiz, certifique-se de instalar as dependências necessárias:
+
+```bash
+# Para os projetos Python (code-smells-project e task-manager-api)
+cd code-smells-project && pip install -r requirements.txt
+cd ../task-manager-api && pip install -r requirements.txt
+
+# Para o projeto Node.js (ecommerce-api-legacy)
+cd ../ecommerce-api-legacy && npm install
+```
+
+### 3. Execução da Skill `refactor-arch`
+
+A skill pode ser invocada via terminal para rodar as fases sequenciais (Análise, Auditoria e Refatoração).
+
+```bash
+# Carregar e rodar a skill refactor-arch a partir do CLI da Gemini / Claude:
+gemini-cli run refactor-arch
+```
+
+### 4. Execução Manual e Teste das Aplicações
+
+Para rodar localmente e testar os endpoints refatorados de cada projeto:
+
+- **code-smells-project**:
+  ```bash
+  cd code-smells-project
+  python app.py
+  ```
+  Acesse `http://localhost:5000/` para interagir com o app.
+
+- **ecommerce-api-legacy**:
+  ```bash
+  cd ecommerce-api-legacy
+  npm start
+  ```
+  O servidor subirá na porta `3000`. Use o arquivo `api.http` para realizar requisições de checkout, exclusão de usuários e relatório financeiro com as chaves e rotas seguras.
+
+- **task-manager-api**:
+  ```bash
+  cd task-manager-api
+  python app.py
+  ```
+  O painel de tarefas rodará em `http://localhost:5000/`. Você pode validar o funcionamento dos endpoints usando os testes automatizados já fornecidos (`test_endpoints.py`).

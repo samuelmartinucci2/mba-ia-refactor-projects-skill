@@ -1,8 +1,12 @@
-const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 function secureCrypto(pwd) {
-    // Correctly hashes using SHA-256 for secure single-way cryptographic hash
-    return crypto.createHash('sha256').update(pwd + "meu-salt-seguro-123").digest('hex');
+    // Correctly hashes using bcrypt for secure single-way cryptographic hash
+    return bcrypt.hashSync(pwd, 10);
 }
 
-module.exports = { secureCrypto };
+function logAndCache(key, val) {
+    console.log(`[Cache Log] Cache key: ${key}, Value: ${val}`);
+}
+
+module.exports = { secureCrypto, logAndCache };
