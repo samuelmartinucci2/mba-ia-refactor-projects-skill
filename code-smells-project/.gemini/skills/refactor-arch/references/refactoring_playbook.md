@@ -91,11 +91,11 @@ function badCrypto(pwd) {
 
 ### Depois:
 ```javascript
-const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 function secureHash(pwd) {
-    // Uso do algoritmo criptográfico nativo seguro (ex: pbkdf2 ou sha256 com salt)
-    return crypto.createHash('sha256').update(pwd + "meu-salt-seguro-123").digest('hex');
+    // Uso de algoritmo de hash adaptativo (bcrypt) com salt dinâmico gerado automaticamente
+    return bcrypt.hashSync(pwd, 10);
 }
 ```
 
