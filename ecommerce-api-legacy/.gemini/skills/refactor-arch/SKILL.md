@@ -65,7 +65,7 @@ Once the user confirms (replies yes), proceed to re-architect and rewrite the co
    - Centralize exceptions using a middleware under `middlewares/`.
    - Maintain a clean entry point in the root (such as `app.py` or `server.js` acting as Composition Root).
 4. **Validation**: Validate that the refactored codebase works.
-   - Ensure the application boots without errors.
+   - **Mandatory Import & Startup Check**: You MUST programmatically verify that the application boots without any errors or broken imports. For Python projects, run `python3 -c "import app"` or similar in the project directory to catch syntax/import failures. For Node.js projects, execute a syntax/dry run (e.g. `node -c` or booting the app briefly) to ensure no `require` or import statements fail.
    - Test that **all original endpoints respond correctly** with correct JSON structures and status codes.
    - Confirm that all identified anti-patterns are resolved.
 
